@@ -3,9 +3,9 @@ name = "shm_ring"
 version = "0.1.0"
 edition = "2021"
 description = "A directional ring buffer for message passing between shared memory"
-author = "Thomas Johnson"
+authors = ["Thomas Johnson <tomjohn111491@gmail.com>"]
 license = "MIT"
-email = "tomjohn111491@gmail.com"
+repository = "https://github.com/tomjohns/shm_ring.git"
 
 [dependencies]
 libc = "*"
