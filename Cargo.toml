@@ -5,6 +5,7 @@ edition = "2021"
 description = "A directional ring buffer for message passing between shared memory"
 author = "Thomas Johnson"
 license = "MIT"
+email = "tomjohn111491@gmail.com"
 
 [dependencies]
 libc = "*"
