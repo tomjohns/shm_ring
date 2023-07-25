@@ -1,7 +1,7 @@
 use core::slice;
 use std::{mem::{transmute, size_of}, fmt::{Display, Formatter}};
 
-
+#[cfg(feature = "avx2")]
 use crate::avx::SliceExt;
 
 #[derive(Debug)]
@@ -90,8 +90,8 @@ impl <'a> RingbufRo<'a> {
     //         usize::from_le_bytes(msg_len_slice.try_into().unwrap())
     //     }
     // }
-    
-    pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
+    #[cfg(feature = "avx2")] 
+    pub fn pop_avx2(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
         if self.is_empty() || self.get_curr_bytes() < size_of::<usize>() {return 0;}
 
@@ -146,6 +146,57 @@ impl <'a> RingbufRo<'a> {
             }
         }
     }
+
+    pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
+        //if buffer is empty or there arent enough bytes to fill the msg_len
+        if self.is_empty() || self.get_curr_bytes() < size_of::<usize>() {return 0;}
+
+//the msg_len field is wrapping
+        if *self.head + size_of::<usize>() > self.size { 
+//EXTRA SAD CASE
+            let bytes_until_end = self.size - *self.head;
+            let first_half = &self.buffer[*self.head..];
+            let second_half = &self.buffer[..size_of::<usize>()-bytes_until_end];
+            let mut msg_len_bytes: Vec<u8> = vec![];
+            msg_len_bytes.extend_from_slice(first_half);
+            msg_len_bytes.extend_from_slice(second_half);
+            let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
+            if msg_len <= self.get_curr_bytes() - size_of::<usize>() { //we've already wrapped so we dont have to worry about the msg wrapping
+                buffer[..msg_len].copy_from_slice(&self.buffer[size_of::<usize>()-bytes_until_end..msg_len+size_of::<usize>()-bytes_until_end]);
+                *self.head = msg_len + size_of::<usize>() - bytes_until_end;
+                msg_len
+            } else {
+                panic!("dragons afoot");
+            } 
+        } else {
+            //there are at least enough bytes to get the msg_len field
+            let msg_len_slice = &self.buffer[*self.head..*self.head+size_of::<usize>()];
+            let msg_len= usize::from_le_bytes(msg_len_slice.try_into().unwrap());
+
+            if msg_len <= self.get_curr_bytes() - size_of::<usize>() {
+                let bytes_until_end = self.size - *self.head;
+
+                if msg_len > bytes_until_end - size_of::<usize>() { //does the message wrap the buffer
+//SAD CASE
+                    let first_half = &self.buffer[*self.head+size_of::<usize>()..];
+                    let second_half = &self.buffer[..msg_len+size_of::<usize>()-bytes_until_end];
+                    buffer[..first_half.len()].copy_from_slice(first_half);
+                    buffer[first_half.len()..first_half.len()+second_half.len()].copy_from_slice(second_half);
+                    *self.head = msg_len+size_of::<usize>()-bytes_until_end;
+
+                    msg_len
+                } else {
+//HAPPY CASE
+                    buffer[..msg_len].copy_from_slice(&self.buffer[*self.head+size_of::<usize>()..*self.head+size_of::<usize>()+msg_len]);
+                    *self.head = (*self.head + size_of::<usize>()+msg_len) % self.size;
+                    msg_len
+                }
+            }else { //there were not enough bytes to fulfil the msg_len, this should never happen
+                panic!("dragons afoot");
+            }
+        }
+    }
+
 
 }
 

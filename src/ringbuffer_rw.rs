@@ -1,6 +1,6 @@
 use core::slice;
 use std::{mem::{transmute, size_of}, fmt::{Formatter, Display}};
-
+#[cfg(feature = "avx2")]
 use crate::avx::SliceExt;
 
 #[derive(Debug)]
@@ -72,8 +72,8 @@ impl <'a> RingbufRw <'a> {
     pub fn empty_slots_left(&self) -> usize {
         self.size - self.get_curr_bytes() - 1
     }
-
-    pub fn push(&mut self, msg: &[u8]) -> usize {
+    #[cfg(feature = "avx2")]
+    pub fn push_avx2(&mut self, msg: &[u8]) -> usize {
         //is buffer full?
         //is there room for the message
         if self.is_full() || msg.len() + size_of::<usize>() > self.empty_slots_left() {return 0;}
@@ -108,6 +108,42 @@ impl <'a> RingbufRw <'a> {
                 self.buffer[*self.tail..*self.tail+size_of::<usize>()].copy_from_slice_avx(&msg_len_bytes);
                 self.buffer[*self.tail+size_of::<usize>()..*self.tail+size_of::<usize>()+msg.len()].copy_from_slice_avx(msg);
             }
+            *self.tail = (*self.tail+size_of::<usize>()+msg.len()) % self.size;
+        }
+
+        msg.len() + size_of::<usize>()
+    }
+
+    pub fn push(&mut self, msg: &[u8]) -> usize {
+        //is buffer full?
+        //is there room for the message
+        if self.is_full() || msg.len() + size_of::<usize>() > self.empty_slots_left() {return 0;}
+
+        let msg_len_bytes = msg.len().to_le_bytes();
+
+        let bytes_until_end = self.size - *self.tail;
+
+        if bytes_until_end < size_of::<usize>() {
+//EXTRA SAD CASE
+            self.buffer[*self.tail..].copy_from_slice(&msg_len_bytes[..bytes_until_end]);
+            self.buffer[..(msg_len_bytes.len()-bytes_until_end)].copy_from_slice(&msg_len_bytes[bytes_until_end..]);
+        
+
+            self.buffer[(msg_len_bytes.len()-bytes_until_end)..(msg_len_bytes.len()-bytes_until_end)+msg.len()].copy_from_slice(msg);
+            
+            *self.tail = msg_len_bytes.len()-bytes_until_end+msg.len();
+        } else if bytes_until_end <= size_of::<usize>() + msg.len() {
+//SAD CASE
+            self.buffer[*self.tail..*self.tail+size_of::<usize>()].copy_from_slice(&msg_len_bytes);
+
+            self.buffer[*self.tail+size_of::<usize>()..].copy_from_slice(&msg[..(bytes_until_end-size_of::<usize>())]);
+            self.buffer[..msg.len()+size_of::<usize>()-bytes_until_end].copy_from_slice(&msg[(bytes_until_end - size_of::<usize>())..]);
+
+            *self.tail = msg.len() + size_of::<usize>() - bytes_until_end;
+        } else {
+//HAPPY CASE
+            self.buffer[*self.tail..*self.tail+size_of::<usize>()].copy_from_slice(&msg_len_bytes);
+            self.buffer[*self.tail+size_of::<usize>()..*self.tail+size_of::<usize>()+msg.len()].copy_from_slice(msg);
             *self.tail = (*self.tail+size_of::<usize>()+msg.len()) % self.size;
         }
 
