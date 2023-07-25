@@ -91,7 +91,7 @@ impl <'a> RingbufRo<'a> {
     //     }
     // }
     #[cfg(feature = "avx2")] 
-    pub fn pop_avx2(&mut self, buffer: &mut [u8]) -> usize{
+    pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
         if self.is_empty() || self.get_curr_bytes() < size_of::<usize>() {return 0;}
 
@@ -147,6 +147,7 @@ impl <'a> RingbufRo<'a> {
         }
     }
 
+    #[cfg(not(feature = "avx2"))]
     pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
         if self.is_empty() || self.get_curr_bytes() < size_of::<usize>() {return 0;}
