@@ -115,7 +115,7 @@ impl <'a> RingbufRw <'a> {
     }
 
     #[cfg(not(feature = "avx2"))]
-    pub fn push(&mut self, msg: &[u8]) -> usize {
+    pub fn push(&mut self, msg: &[u8]) -> u32 {
         //is buffer full?
         //is there room for the message
         if self.is_full() || msg.len() as u32 + size_of::<u32>() as u32 > self.empty_slots_left() {return 0;}
@@ -149,7 +149,7 @@ impl <'a> RingbufRw <'a> {
             *self.tail = (*self.tail+size_of::<u32>() as u32+msg.len() as u32) % self.size;
         }
 
-        msg.len() + size_of::<usize>()
+        (msg.len() + size_of::<u32>()) as u32
     }
 }
 
