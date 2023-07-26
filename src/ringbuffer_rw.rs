@@ -121,7 +121,6 @@ impl <'a> RingbufRw <'a> {
         if self.is_full() || msg.len() as u32 + size_of::<u32>() as u32 > self.empty_slots_left() {return 0;}
 
         let msg_len_bytes = &msg.len().to_le_bytes()[..size_of::<u32>()];
-        dbg!(msg_len_bytes);
 
         let bytes_until_end = self.size - *self.tail;
 
