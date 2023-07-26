@@ -5,14 +5,14 @@ use crate::avx::SliceExt;
 
 #[derive(Debug)]
 pub struct RingbufRw <'a> {
-    head : &'a usize,
-    tail : &'a mut usize,
-    size : usize,
+    head : &'a u32,
+    tail : &'a mut u32,
+    size : u32,
     buffer : &'a mut [u8],
 }
 
 impl <'a> RingbufRw <'a> {
-    pub fn make(tail : & 'a mut usize, head : & 'a usize, size : usize, buffer : & 'a mut [u8]) -> Self {
+    pub fn make(tail : & 'a mut u32, head : & 'a u32, size : u32, buffer : & 'a mut [u8]) -> Self {
         Self {
             tail : tail,
             head : head,
@@ -21,14 +21,14 @@ impl <'a> RingbufRw <'a> {
         }
     }
     
-    pub fn new(size : usize, data : * mut u8) -> Self {
+    pub fn new(size : u32, data : * mut u8) -> Self {
         if data.is_null() {panic!("data cannot be null")}
-        let tail : & mut usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
-        let head : & usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
-        let size = size - (size_of::<usize>() * 2);
-        return RingbufRw::make(tail, head, size, unsafe {slice::from_raw_parts_mut(data, size)} );
+        let tail : & mut u32 = unsafe { transmute(data as * mut u32) };
+        let data = unsafe { data.offset(size_of::<u32>() as isize) };
+        let head : & u32 = unsafe { transmute(data as * mut u32) };
+        let data = unsafe { data.offset(size_of::<u32>() as isize) };
+        let size = size - (size_of::<u32>() * 2) as u32;
+        return RingbufRw::make(tail, head, size, unsafe {slice::from_raw_parts_mut(data, size.try_into().unwrap())} );
     }
 
     pub fn is_empty(&self) -> bool {
@@ -47,7 +47,7 @@ impl <'a> RingbufRw <'a> {
         }
     }
 
-    pub fn get_curr_bytes(&self) -> usize {
+    pub fn get_curr_bytes(&self) -> u32 {
         if *self.tail > *self.head {
             *self.tail - *self.head
         } else if *self.tail < *self.head {
@@ -57,19 +57,19 @@ impl <'a> RingbufRw <'a> {
         }
     }
     
-    pub fn get_head(&self) -> usize {
+    pub fn get_head(&self) -> u32 {
         *self.head
     }
     
-    pub fn get_tail(&self) -> usize {
+    pub fn get_tail(&self) -> u32 {
         *self.tail
     }
 
-    pub fn get_size(&self) -> usize {
+    pub fn get_size(&self) -> u32 {
         self.size
     }
 
-    pub fn empty_slots_left(&self) -> usize {
+    pub fn empty_slots_left(&self) -> u32 {
         self.size - self.get_curr_bytes() - 1
     }
     #[cfg(feature = "avx2")]
@@ -118,34 +118,35 @@ impl <'a> RingbufRw <'a> {
     pub fn push(&mut self, msg: &[u8]) -> usize {
         //is buffer full?
         //is there room for the message
-        if self.is_full() || msg.len() + size_of::<usize>() > self.empty_slots_left() {return 0;}
+        if self.is_full() || msg.len() as u32 + size_of::<u32>() as u32 > self.empty_slots_left() {return 0;}
 
-        let msg_len_bytes = msg.len().to_le_bytes();
+        let msg_len_bytes = &msg.len().to_le_bytes()[..size_of::<u32>()];
+        dbg!(msg_len_bytes);
 
         let bytes_until_end = self.size - *self.tail;
 
-        if bytes_until_end < size_of::<usize>() {
+        if bytes_until_end < size_of::<u32>() as u32 {
 //EXTRA SAD CASE
-            self.buffer[*self.tail..].copy_from_slice(&msg_len_bytes[..bytes_until_end]);
-            self.buffer[..(msg_len_bytes.len()-bytes_until_end)].copy_from_slice(&msg_len_bytes[bytes_until_end..]);
+            self.buffer[*self.tail as usize..].copy_from_slice(&msg_len_bytes[..bytes_until_end as usize]);
+            self.buffer[..(msg_len_bytes.len()-bytes_until_end as usize)].copy_from_slice(&msg_len_bytes[bytes_until_end as usize..]);
         
 
-            self.buffer[(msg_len_bytes.len()-bytes_until_end)..(msg_len_bytes.len()-bytes_until_end)+msg.len()].copy_from_slice(msg);
+            self.buffer[(msg_len_bytes.len()-bytes_until_end as usize)..(msg_len_bytes.len()-bytes_until_end as usize)+msg.len()].copy_from_slice(msg);
             
-            *self.tail = msg_len_bytes.len()-bytes_until_end+msg.len();
-        } else if bytes_until_end <= size_of::<usize>() + msg.len() {
+            *self.tail = msg_len_bytes.len() as u32-bytes_until_end+msg.len() as u32;
+        } else if bytes_until_end <= size_of::<u32>() as u32 + msg.len() as u32 {
 //SAD CASE
-            self.buffer[*self.tail..*self.tail+size_of::<usize>()].copy_from_slice(&msg_len_bytes);
+            self.buffer[*self.tail as usize..*self.tail as usize+size_of::<u32>()].copy_from_slice(&msg_len_bytes);
 
-            self.buffer[*self.tail+size_of::<usize>()..].copy_from_slice(&msg[..(bytes_until_end-size_of::<usize>())]);
-            self.buffer[..msg.len()+size_of::<usize>()-bytes_until_end].copy_from_slice(&msg[(bytes_until_end - size_of::<usize>())..]);
+            self.buffer[*self.tail as usize+size_of::<u32>()..].copy_from_slice(&msg[..(bytes_until_end as usize-size_of::<u32>())]);
+            self.buffer[..msg.len()+size_of::<u32>()-bytes_until_end as usize].copy_from_slice(&msg[(bytes_until_end as usize - size_of::<u32>())..]);
 
-            *self.tail = msg.len() + size_of::<usize>() - bytes_until_end;
+            *self.tail = msg.len() as u32+ size_of::<u32>() as u32 - bytes_until_end;
         } else {
 //HAPPY CASE
-            self.buffer[*self.tail..*self.tail+size_of::<usize>()].copy_from_slice(&msg_len_bytes);
-            self.buffer[*self.tail+size_of::<usize>()..*self.tail+size_of::<usize>()+msg.len()].copy_from_slice(msg);
-            *self.tail = (*self.tail+size_of::<usize>()+msg.len()) % self.size;
+            self.buffer[*self.tail as usize..*self.tail as usize+size_of::<u32>()].copy_from_slice(&msg_len_bytes);
+            self.buffer[*self.tail as usize+size_of::<u32>()..*self.tail as usize+size_of::<u32>()+msg.len()].copy_from_slice(msg);
+            *self.tail = (*self.tail+size_of::<u32>() as u32+msg.len() as u32) % self.size;
         }
 
         msg.len() + size_of::<usize>()
@@ -161,9 +162,9 @@ impl<'a> Display for RingbufRw<'a> {
                 String::from("EMPTY")
             } else if self.is_full() {
                 String::from("FULLL")
-            } else if i == *self.head {
+            } else if i == *self.head as usize{
                 String::from("HEAD^")
-            } else if i == *self.tail {
+            } else if i == *self.tail as usize{
                 String::from("TAIL^")
             } else {
                 String::from("     ")
