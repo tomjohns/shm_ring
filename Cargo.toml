@@ -11,3 +11,5 @@ repository = "https://github.com/tomjohns/shm_ring.git"
 libc = "^0.2.141"
 nix = "^0.26.2"
 
+[features]
+avx2 = []
