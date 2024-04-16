@@ -67,6 +67,10 @@ impl <'a> RingbufRw <'a> {
         *self.tail
     }
 
+    pub fn set_tail(&mut self, num: usize) {
+        *self.tail = num;
+    }
+
     pub fn get_size(&self) -> usize {
         self.size
     }

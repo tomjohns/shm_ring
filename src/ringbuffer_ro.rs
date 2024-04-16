@@ -65,6 +65,10 @@ impl <'a> RingbufRo<'a> {
         *self.head
     }
     
+    pub fn set_head(&mut self, num: usize) {
+        *self.head = num;
+    }
+    
     pub fn get_tail(&self) -> usize {
         *self.tail
     }
