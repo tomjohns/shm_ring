@@ -6,10 +6,10 @@ use crate::avx::SliceExt;
 
 #[derive(Debug)]
 pub struct RingbufRo<'a> {
-    head : &'a mut usize,
-    tail : &'a usize,
-    size : usize,
-    buffer : &'a [u8],
+    pub(crate) head : &'a mut usize,
+    pub(crate) tail : &'a usize,
+    pub(crate) size : usize,
+    pub(crate) buffer : &'a [u8],
 }
 
 impl <'a> RingbufRo<'a> {
@@ -98,9 +98,9 @@ impl <'a> RingbufRo<'a> {
             let bytes_until_end = self.size - head;
             let first_half = &self.buffer[head..];
             let second_half = &self.buffer[..sz_of_usize-bytes_until_end];
-            let mut msg_len_bytes: Vec<u8> = vec![];
-            msg_len_bytes.extend_from_slice(first_half);
-            msg_len_bytes.extend_from_slice(second_half);
+            let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
+            msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
+            msg_len_bytes[second_half.len()..].copy_from_slice(second_half);
             let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
             if msg_len <= curr_bytes - sz_of_usize { //we've already wrapped so we dont have to worry about the msg wrapping
                 buffer[..msg_len].copy_from_slice_avx(&self.buffer[sz_of_usize-bytes_until_end..msg_len+sz_of_usize-bytes_until_end]);
@@ -138,6 +138,12 @@ impl <'a> RingbufRo<'a> {
         }
     }
 
+
+    // pub fn peek(&mut self, head: usize) -> (&[u8], Option<&[u8]>){
+        
+
+    // }
+
     #[cfg(not(feature = "avx2"))]
     pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
@@ -154,10 +160,11 @@ impl <'a> RingbufRo<'a> {
             let bytes_until_end = self.size - head;
             let first_half = &self.buffer[head..];
             let second_half = &self.buffer[..sz_of_usize-bytes_until_end];
-            let mut msg_len_bytes: Vec<u8> = vec![];
-            msg_len_bytes.extend_from_slice(first_half);
-            msg_len_bytes.extend_from_slice(second_half);
+            let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
+            msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
+            msg_len_bytes[second_half.len()..].copy_from_slice(second_half);
             let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
+
             if msg_len <= curr_bytes - sz_of_usize { //we've already wrapped so we dont have to worry about the msg wrapping
                 buffer[..msg_len].copy_from_slice(&self.buffer[sz_of_usize-bytes_until_end..msg_len+sz_of_usize-bytes_until_end]);
                 *self.head = msg_len + sz_of_usize - bytes_until_end;

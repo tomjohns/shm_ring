@@ -5,10 +5,10 @@ use crate::avx::SliceExt;
 
 #[derive(Debug)]
 pub struct RingbufRw <'a> {
-    head : &'a usize,
-    tail : &'a mut usize,
-    size : usize,
-    buffer : &'a mut [u8],
+    pub(crate) head : &'a usize,
+    pub(crate) tail : &'a mut usize,
+    pub(crate) size : usize,
+    pub(crate) buffer : &'a mut [u8],
 }
 
 impl <'a> RingbufRw <'a> {
