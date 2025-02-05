@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests{
-    use shm_ring::{ringbuffer_ro::{RingbufRo},ringbuffer_rw::{RingbufRw}};
-    const TEST_SHM_SIZE: usize = 52;
+    use shm_ring::{drain_and_fill, ringbuffer_ro::RingbufRo, ringbuffer_rw::RingbufRw};
+    const TEST_SHM_SIZE: usize = 52;//8 for head, 8 for tail, 36 for buffer (35 that are available)
 
 
     #[test]

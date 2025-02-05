@@ -1,5 +1,6 @@
 use core::slice;
 use std::{mem::{transmute, size_of}, fmt::{Display, Formatter}};
+use crate::SZ_OF_USIZE;
 
 #[cfg(feature = "avx2")]
 use crate::avx::SliceExt;
@@ -85,51 +86,50 @@ impl <'a> RingbufRo<'a> {
     #[cfg(feature = "avx2")]
     pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
-        let sz_of_usize = size_of::<usize>();
         let curr_bytes = self.get_curr_bytes();
 
-        if self.is_empty() || curr_bytes < sz_of_usize {return 0;}
+        if self.is_empty() || curr_bytes < SZ_OF_USIZE {return 0;}
 
         let head = *self.head;
 
 //the msg_len field is wrapping
-        if head + sz_of_usize > self.size { 
+        if head + SZ_OF_USIZE > self.size { 
 //EXTRA SAD CASE
             let bytes_until_end = self.size - head;
             let first_half = &self.buffer[head..];
-            let second_half = &self.buffer[..sz_of_usize-bytes_until_end];
+            let second_half = &self.buffer[..SZ_OF_USIZE-bytes_until_end];
             let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
             msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
-            msg_len_bytes[second_half.len()..].copy_from_slice(second_half);
+            msg_len_bytes[first_half.len()..].copy_from_slice(second_half);
             let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
-            if msg_len <= curr_bytes - sz_of_usize { //we've already wrapped so we dont have to worry about the msg wrapping
-                buffer[..msg_len].copy_from_slice_avx(&self.buffer[sz_of_usize-bytes_until_end..msg_len+sz_of_usize-bytes_until_end]);
-                *self.head = msg_len + sz_of_usize - bytes_until_end;
+            if msg_len <= curr_bytes - SZ_OF_USIZE { //we've already wrapped so we dont have to worry about the msg wrapping
+                buffer[..msg_len].copy_from_slice_avx(&self.buffer[SZ_OF_USIZE-bytes_until_end..msg_len+SZ_OF_USIZE-bytes_until_end]);
+                *self.head = msg_len + SZ_OF_USIZE - bytes_until_end;
                 msg_len
             } else {
                 panic!("Error: the msg_len is greater than the number of bytes available");
             } 
         } else {
             //there are at least enough bytes to get the msg_len field
-            let msg_len_slice = &self.buffer[head..head+sz_of_usize];
+            let msg_len_slice = &self.buffer[head..head+SZ_OF_USIZE];
             let msg_len= usize::from_le_bytes(msg_len_slice.try_into().unwrap());
 
-            if msg_len <= curr_bytes - sz_of_usize {
+            if msg_len <= curr_bytes - SZ_OF_USIZE {
                 let bytes_until_end = self.size - head;
 
-                if msg_len > bytes_until_end - sz_of_usize { //does the message wrap the buffer
+                if msg_len > bytes_until_end - SZ_OF_USIZE { //does the message wrap the buffer
 //SAD CASE
-                    let first_half = &self.buffer[head+sz_of_usize..];
-                    let second_half = &self.buffer[..msg_len+sz_of_usize-bytes_until_end];
+                    let first_half = &self.buffer[head+SZ_OF_USIZE..];
+                    let second_half = &self.buffer[..msg_len+SZ_OF_USIZE-bytes_until_end];
                     buffer[..first_half.len()].copy_from_slice_avx(first_half);
                     buffer[first_half.len()..first_half.len()+second_half.len()].copy_from_slice_avx(second_half);
-                    *self.head = msg_len+sz_of_usize-bytes_until_end;
+                    *self.head = msg_len+SZ_OF_USIZE-bytes_until_end;
 
                     msg_len
                 } else {
 //HAPPY CASE
-                    buffer[..msg_len].copy_from_slice_avx(&self.buffer[head+sz_of_usize..head+sz_of_usize+msg_len]);
-                    *self.head = (head + sz_of_usize + msg_len) % self.size;
+                    buffer[..msg_len].copy_from_slice_avx(&self.buffer[head+SZ_OF_USIZE..head+SZ_OF_USIZE+msg_len]);
+                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.size;
                     msg_len
                 }
             }else { //there were not enough bytes to fulfil the msg_len, this should never happen
@@ -139,60 +139,55 @@ impl <'a> RingbufRo<'a> {
     }
 
 
-    // pub fn peek(&mut self, head: usize) -> (&[u8], Option<&[u8]>){
-        
-
-    // }
-
     #[cfg(not(feature = "avx2"))]
     pub fn pop(&mut self, buffer: &mut [u8]) -> usize{
         //if buffer is empty or there arent enough bytes to fill the msg_len
-        let sz_of_usize = size_of::<usize>();
+
         let curr_bytes = self.get_curr_bytes();
 
-        if self.is_empty() || curr_bytes < sz_of_usize {return 0;}
+        if self.is_empty() || curr_bytes < SZ_OF_USIZE {return 0;}
 
         let head = *self.head;
 
 //the msg_len field is wrapping
-        if head + sz_of_usize > self.size { 
+        if head + SZ_OF_USIZE > self.size { 
 //EXTRA SAD CASE
             let bytes_until_end = self.size - head;
             let first_half = &self.buffer[head..];
-            let second_half = &self.buffer[..sz_of_usize-bytes_until_end];
-            let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
+            let second_half = &self.buffer[..SZ_OF_USIZE-bytes_until_end];
+            let mut msg_len_bytes: [u8;SZ_OF_USIZE] = [0;SZ_OF_USIZE];
             msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
-            msg_len_bytes[second_half.len()..].copy_from_slice(second_half);
+            msg_len_bytes[first_half.len()..].copy_from_slice(second_half);
             let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
 
-            if msg_len <= curr_bytes - sz_of_usize { //we've already wrapped so we dont have to worry about the msg wrapping
-                buffer[..msg_len].copy_from_slice(&self.buffer[sz_of_usize-bytes_until_end..msg_len+sz_of_usize-bytes_until_end]);
-                *self.head = msg_len + sz_of_usize - bytes_until_end;
+            if msg_len <= curr_bytes - SZ_OF_USIZE { //we've already wrapped so we dont have to worry about the msg wrapping
+                buffer[..msg_len].copy_from_slice(&self.buffer[SZ_OF_USIZE-bytes_until_end..msg_len+SZ_OF_USIZE-bytes_until_end]);
+                *self.head = msg_len + SZ_OF_USIZE - bytes_until_end;
                 msg_len
             } else {
                 panic!("Error: the msg_len is greater than the number of bytes available");
             } 
         } else {
             //there are at least enough bytes to get the msg_len field
-            let msg_len_slice = &self.buffer[head..head+sz_of_usize];
+            let msg_len_slice = &self.buffer[head..head+SZ_OF_USIZE];
             let msg_len= usize::from_le_bytes(msg_len_slice.try_into().unwrap());
 
-            if msg_len <= curr_bytes - sz_of_usize {
+            if msg_len <= curr_bytes - SZ_OF_USIZE {
                 let bytes_until_end = self.size - head;
 
-                if msg_len > bytes_until_end - sz_of_usize { //does the message wrap the buffer
+                if msg_len > bytes_until_end - SZ_OF_USIZE { //does the message wrap the buffer
 //SAD CASE
-                    let first_half = &self.buffer[head+sz_of_usize..];
-                    let second_half = &self.buffer[..msg_len+sz_of_usize-bytes_until_end];
+                    let first_half = &self.buffer[head+SZ_OF_USIZE..];
+                    let second_half = &self.buffer[..msg_len+SZ_OF_USIZE-bytes_until_end];
                     buffer[..first_half.len()].copy_from_slice(first_half);
                     buffer[first_half.len()..first_half.len()+second_half.len()].copy_from_slice(second_half);
-                    *self.head = msg_len+sz_of_usize-bytes_until_end;
+                    *self.head = msg_len+SZ_OF_USIZE-bytes_until_end;
 
                     msg_len
                 } else {
 //HAPPY CASE
-                    buffer[..msg_len].copy_from_slice(&self.buffer[head+sz_of_usize..head+sz_of_usize+msg_len]);
-                    *self.head = (head + sz_of_usize + msg_len) % self.size;
+                    buffer[..msg_len].copy_from_slice(&self.buffer[head+SZ_OF_USIZE..head+SZ_OF_USIZE+msg_len]);
+                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.size;
                     msg_len
                 }
             }else { //there were not enough bytes to fulfil the msg_len, this should never happen
