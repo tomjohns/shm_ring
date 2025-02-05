@@ -1,5 +1,5 @@
 use core::slice;
-use std::{mem::{transmute, size_of}, fmt::{Display, Formatter}};
+use std::{mem::size_of, fmt::{Display, Formatter}};
 use crate::SZ_OF_USIZE;
 
 #[cfg(feature = "avx2")]
@@ -14,37 +14,29 @@ pub struct RingbufRo<'a> {
 
 impl <'a> RingbufRo<'a> {
     pub fn make(tail : & 'a usize, head : & 'a mut usize, buffer : & 'a [u8]) -> Self {
-        Self {
-            tail : tail,
-            head : head,
-            buffer : buffer,
-        }
+        Self { tail, head, buffer }
     }
-    
-    pub fn new(size : usize, data : * mut u8) -> Self {
+
+    /// # Safety
+    ///
+    /// This function is used to create a ringbuffer from a pointer and length
+    /// It is up to the caller to ensure the size argument is correct 
+    pub unsafe fn new(size : usize, data : * mut u8) -> Self {
         if data.is_null() {panic!("data cannot be null")}
-        let tail : & usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
-        let head : & mut usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
+        let tail : & usize = unsafe { &*(data as * mut usize) };
+        let data = unsafe { data.add(SZ_OF_USIZE) };
+        let head : & mut usize = unsafe { &mut *(data as * mut usize) };
+        let data = unsafe { data.add(SZ_OF_USIZE) };
         let size = size - (size_of::<usize>() * 2);
         return RingbufRo::make(tail, head, unsafe {slice::from_raw_parts_mut(data, size)} );
     }
 
     pub fn is_empty(&self) -> bool {
-        if *self.head == *self.tail{
-            true
-        } else {
-            false
-        } 
+        *self.head == *self.tail
     }
 
     pub fn is_full(&self) -> bool {
-        if (*self.tail + 1) % self.buffer.len() == *self.head {
-            true
-        } else {
-            false
-        }
+        (*self.tail + 1) % self.buffer.len() == *self.head 
     }
 
     //this function returns the current number of bytes that are in the ring buffer
@@ -99,7 +91,7 @@ impl <'a> RingbufRo<'a> {
             let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
             msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
             msg_len_bytes[first_half.len()..].copy_from_slice(second_half);
-            let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
+            let msg_len = usize::from_le_bytes(msg_len_bytes);
             if msg_len <= curr_bytes - SZ_OF_USIZE { //we've already wrapped so we dont have to worry about the msg wrapping
                 buffer[..msg_len].copy_from_slice_avx(&self.buffer[SZ_OF_USIZE-bytes_until_end..msg_len+SZ_OF_USIZE-bytes_until_end]);
                 *self.head = msg_len + SZ_OF_USIZE - bytes_until_end;
@@ -156,7 +148,7 @@ impl <'a> RingbufRo<'a> {
             let mut msg_len_bytes: [u8;SZ_OF_USIZE] = [0;SZ_OF_USIZE];
             msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
             msg_len_bytes[first_half.len()..].copy_from_slice(second_half);
-            let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
+            let msg_len = usize::from_le_bytes(msg_len_bytes);
 
             if msg_len <= curr_bytes - SZ_OF_USIZE { //we've already wrapped so we dont have to worry about the msg wrapping
                 buffer[..msg_len].copy_from_slice(&self.buffer[SZ_OF_USIZE-bytes_until_end..msg_len+SZ_OF_USIZE-bytes_until_end]);
@@ -216,12 +208,12 @@ impl<'a> Display for RingbufRo<'a> {
         })
         .collect::<Vec<String>>().join("|");
         
-        return write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
-                      self.tail,
-                      self.head,
-                      self.buffer.len(),
-                      &hex,
-                      &headtail);
+        write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
+                self.tail,
+                self.head,
+                self.buffer.len(),
+                &hex,
+                &headtail)
     }
 }
 

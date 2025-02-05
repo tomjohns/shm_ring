@@ -61,7 +61,7 @@ fn peek(head: usize, tail: usize, buffer: &[u8]) -> usize {
         let mut msg_len_bytes: [u8;SZ_OF_USIZE] = [0;SZ_OF_USIZE];
         msg_len_bytes[..first_half.len()].copy_from_slice(first_half);
         msg_len_bytes[first_half.len()..].copy_from_slice(second_half);
-        let msg_len = usize::from_le_bytes(msg_len_bytes.try_into().unwrap());
+        let msg_len = usize::from_le_bytes(msg_len_bytes);
 
         if msg_len <= curr_bytes - SZ_OF_USIZE { //we've already wrapped so we dont have to worry about the msg wrapping
             msg_len
@@ -99,7 +99,7 @@ fn bytes_within_limit(limit: usize, mut phantom_head: usize, phantom_tail: usize
 }
 
 /// given a pre calculated contiguous region of messages (accumulator), get references to them
-fn get_parts<'a>(accumulator: usize, phantom_head: usize, buffer: &'a [u8]) -> (&'a[u8], Option<&'a[u8]>){
+fn get_parts(accumulator: usize, phantom_head: usize, buffer: &[u8]) -> (&[u8], Option<&[u8]>){
     //---------------------Get the contiguous messages in potentially 2 parts
     let first_part: &[u8];
     let mut second_part: Option<&[u8]> = None;

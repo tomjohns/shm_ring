@@ -1,5 +1,5 @@
 use core::slice;
-use std::{mem::{transmute, size_of}, fmt::{Formatter, Display}};
+use std::{mem::size_of, fmt::{Formatter, Display}};
 use crate::SZ_OF_USIZE;
 #[cfg(feature = "avx2")]
 use crate::avx::SliceExt;
@@ -13,37 +13,29 @@ pub struct RingbufRw <'a> {
 
 impl <'a> RingbufRw <'a> {
     pub fn make(tail : & 'a mut usize, head : & 'a usize, buffer : & 'a mut [u8]) -> Self {
-        Self {
-            tail : tail,
-            head : head,
-            buffer : buffer,
-        }
+        Self { tail, head, buffer }
     }
-    
-    pub fn new(size : usize, data : * mut u8) -> Self {
+
+    /// # Safety
+    ///
+    /// This function is used to create a ringbuffer from a pointer and length
+    /// It is up to the caller to ensure the size argument is correct 
+    pub unsafe fn new(size : usize, data : * mut u8) -> Self {
         if data.is_null() {panic!("data cannot be null")}
-        let tail : & mut usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
-        let head : & usize = unsafe { transmute(data as * mut usize) };
-        let data = unsafe { data.offset(size_of::<usize>() as isize) };
+        let tail : &mut usize = unsafe { &mut *(data as * mut usize) };
+        let data = unsafe { data.add(SZ_OF_USIZE) };
+        let head : &usize = unsafe { &*(data as * mut usize) };
+        let data = unsafe { data.add(SZ_OF_USIZE) };
         let size = size - (size_of::<usize>() * 2);
         return RingbufRw::make(tail, head,unsafe {slice::from_raw_parts_mut(data, size)} );
     }
 
     pub fn is_empty(&self) -> bool {
-        if *self.head == *self.tail{
-            true
-        } else {
-            false
-        } 
+        *self.head == *self.tail
     }
 
     pub fn is_full(&self) -> bool {
-        if (*self.tail + 1) % self.buffer.len() == *self.head {
-            true
-        } else {
-            false
-        }
+        (*self.tail + 1) % self.buffer.len() == *self.head 
     }
 
     pub fn get_curr_bytes(&self) -> usize {
@@ -176,12 +168,12 @@ impl<'a> Display for RingbufRw<'a> {
         })
         .collect::<Vec<String>>().join("|");
         
-        return write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
-                      self.tail,
-                      self.head,
-                      self.buffer.len(),
-                      &hex,
-                      &headtail);
+        write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
+                    self.tail,
+                    self.head,
+                    self.buffer.len(),
+                    &hex,
+                    &headtail)
     }
 }
 

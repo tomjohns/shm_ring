@@ -7,8 +7,8 @@ mod tests{
     #[test]
     fn test_is_full_fn(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAABBBBCCCCDDDDEEEEFFFFGGG";
         let _result = w_ring.push(msg);
@@ -22,8 +22,8 @@ mod tests{
     #[test]
     fn test_is_empty_fn(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         assert_eq!(true, r_ring.is_empty());
         assert_eq!(true, w_ring.is_empty());
@@ -34,8 +34,8 @@ mod tests{
     #[test]
     fn test_push_pop_twice_ring_buffer(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAABB";
         println!("PUSH {:x?}", &msg);
@@ -95,8 +95,8 @@ mod tests{
     #[test]
     fn test_push_push_full_pop_pop(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAABBBBCC";
         println!("PUSH {:x?}", &msg);
@@ -132,8 +132,8 @@ mod tests{
     #[test]
     fn test_happy_wrap(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAA";
         println!("PUSH {:x?}", &msg);
@@ -184,8 +184,8 @@ mod tests{
     #[test]
     fn test_sad_wrap(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAABB";
         println!("PUSH {:x?}", &msg);
@@ -214,8 +214,8 @@ mod tests{
     #[test]
     fn test_extra_sad_wrap(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"AAAABBBBCCCCDDDDEEEEFFFF";
         println!("PUSH {:x?}", &msg);
@@ -244,8 +244,8 @@ mod tests{
     #[test]
     fn test_empty_msg(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let msg = b"";
         println!("PUSH {:x?}", &msg);
@@ -262,7 +262,7 @@ mod tests{
     #[test]
     fn test_push_msg_when_full(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut w_ring = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut w_ring = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
         let msg = b"AAAABBBBCCCCDDDD";
         println!("PUSH {:x?}", &msg);
         let _result = w_ring.push(msg);
@@ -276,7 +276,7 @@ mod tests{
     #[test]
     fn test_pop_msg_when_empty(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut r_ring = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut r_ring = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         let mut buffer = [0;0];
         let result = r_ring.pop(&mut buffer);

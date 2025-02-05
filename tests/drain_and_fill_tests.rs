@@ -12,8 +12,8 @@ mod drain_and_fill_tests{
     #[test]
     fn reader_is_empty(){
         let mut buffer: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader = RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
-        let mut writer = RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr());
+        let mut reader = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
+        let mut writer = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer.as_mut_ptr()) };
 
         assert!(reader.is_empty());
         assert!(writer.is_empty());
@@ -31,10 +31,10 @@ mod drain_and_fill_tests{
         let msg = b"AAAABBBB";
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut _reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut _reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Put a msg in the reader 
         let _amt = writer1.push(msg);
@@ -60,12 +60,12 @@ mod drain_and_fill_tests{
     #[test]
     fn multiple_msgs_will_fit(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE*2];
-        let mut reader1 = RingbufRo::new(buffer1.len(), buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(buffer1.len(), buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(buffer1.len(), buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(buffer1.len(), buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(buffer2.len(), buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(buffer2.len(), buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Put 3 msgs in reader1, only 2 will fit in the writer2 
         let msg = b"AAAABBBB";
@@ -104,12 +104,12 @@ mod drain_and_fill_tests{
     #[test]
     fn one_part_no_wrap(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         assert!(reader1.is_empty());
         assert!(writer1.is_empty());
@@ -137,12 +137,12 @@ mod drain_and_fill_tests{
     #[test]
     fn one_part_wrap(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Advance the head and tail of the writer to 2 bytes before the end to force a wrap on write
         let buffer_end = TEST_SHM_SIZE - 2 * SZ_OF_USIZE - 2;
@@ -174,12 +174,12 @@ mod drain_and_fill_tests{
     #[test]
     fn two_parts_no_wrap(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Advance the head and tail of the reader to 4 bytes before the end to force a msg to wrap
         let buffer_end = TEST_SHM_SIZE - 2 * SZ_OF_USIZE - 4; 
@@ -215,12 +215,12 @@ mod drain_and_fill_tests{
     #[test]
     fn two_parts_first_part_wraps(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Advance the head and tail of the reader to 8 bytes before the end to force a msg to wrap
         let buffer_end = TEST_SHM_SIZE - 2 * SZ_OF_USIZE - 8; 
@@ -261,12 +261,12 @@ mod drain_and_fill_tests{
     #[test]
     fn two_parts_second_part_wraps(){
         let mut buffer1: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader1 = RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
-        let mut writer1 = RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr());
+        let mut reader1 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
+        let mut writer1 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer1.as_mut_ptr()) };
 
         let mut buffer2: Vec<u8> = vec![0;TEST_SHM_SIZE];
-        let mut reader2 = RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
-        let mut writer2 = RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr());
+        let mut reader2 = unsafe{ RingbufRo::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
+        let mut writer2 = unsafe{ RingbufRw::new(TEST_SHM_SIZE, buffer2.as_mut_ptr()) };
 
         // Advance the head and tail of the reader to 8 bytes before the end to force a msg to wrap
         let buffer_end = TEST_SHM_SIZE - 2 * SZ_OF_USIZE - 8; 
