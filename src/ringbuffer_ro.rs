@@ -9,16 +9,14 @@ use crate::avx::SliceExt;
 pub struct RingbufRo<'a> {
     pub(crate) head : &'a mut usize,
     pub(crate) tail : &'a usize,
-    pub(crate) size : usize,
     pub(crate) buffer : &'a [u8],
 }
 
 impl <'a> RingbufRo<'a> {
-    pub fn make(tail : & 'a usize, head : & 'a mut usize, size : usize, buffer : & 'a [u8]) -> Self {
+    pub fn make(tail : & 'a usize, head : & 'a mut usize, buffer : & 'a [u8]) -> Self {
         Self {
             tail : tail,
             head : head,
-            size : size,//TODO: get rid of size, we can get that from buffer.len()
             buffer : buffer,
         }
     }
@@ -30,7 +28,7 @@ impl <'a> RingbufRo<'a> {
         let head : & mut usize = unsafe { transmute(data as * mut usize) };
         let data = unsafe { data.offset(size_of::<usize>() as isize) };
         let size = size - (size_of::<usize>() * 2);
-        return RingbufRo::make(tail, head, size, unsafe {slice::from_raw_parts_mut(data, size)} );
+        return RingbufRo::make(tail, head, unsafe {slice::from_raw_parts_mut(data, size)} );
     }
 
     pub fn is_empty(&self) -> bool {
@@ -42,7 +40,7 @@ impl <'a> RingbufRo<'a> {
     }
 
     pub fn is_full(&self) -> bool {
-        if (*self.tail + 1) % self.size == *self.head {
+        if (*self.tail + 1) % self.buffer.len() == *self.head {
             true
         } else {
             false
@@ -56,7 +54,7 @@ impl <'a> RingbufRo<'a> {
         if tail > head {
             tail - head
         } else if tail < head {
-            self.size + tail - head
+            self.buffer.len() + tail - head
         } else {
             0
         }
@@ -75,12 +73,12 @@ impl <'a> RingbufRo<'a> {
     }
 
     pub fn get_size(&self) -> usize {
-        self.size
+        self.buffer.len()
     }
 
 
     pub fn empty_slots_left(&self) -> usize {
-        self.size - self.get_curr_bytes() - 1
+        self.buffer.len() - self.get_curr_bytes() - 1
     }
 
     #[cfg(feature = "avx2")]
@@ -93,9 +91,9 @@ impl <'a> RingbufRo<'a> {
         let head = *self.head;
 
 //the msg_len field is wrapping
-        if head + SZ_OF_USIZE > self.size { 
+        if head + SZ_OF_USIZE > self.buffer.len() { 
 //EXTRA SAD CASE
-            let bytes_until_end = self.size - head;
+            let bytes_until_end = self.buffer.len() - head;
             let first_half = &self.buffer[head..];
             let second_half = &self.buffer[..SZ_OF_USIZE-bytes_until_end];
             let mut msg_len_bytes: [u8;size_of::<usize>()] = [0;size_of::<usize>()];
@@ -115,7 +113,7 @@ impl <'a> RingbufRo<'a> {
             let msg_len= usize::from_le_bytes(msg_len_slice.try_into().unwrap());
 
             if msg_len <= curr_bytes - SZ_OF_USIZE {
-                let bytes_until_end = self.size - head;
+                let bytes_until_end = self.buffer.len() - head;
 
                 if msg_len > bytes_until_end - SZ_OF_USIZE { //does the message wrap the buffer
 //SAD CASE
@@ -129,7 +127,7 @@ impl <'a> RingbufRo<'a> {
                 } else {
 //HAPPY CASE
                     buffer[..msg_len].copy_from_slice_avx(&self.buffer[head+SZ_OF_USIZE..head+SZ_OF_USIZE+msg_len]);
-                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.size;
+                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.buffer.len();
                     msg_len
                 }
             }else { //there were not enough bytes to fulfil the msg_len, this should never happen
@@ -150,9 +148,9 @@ impl <'a> RingbufRo<'a> {
         let head = *self.head;
 
 //the msg_len field is wrapping
-        if head + SZ_OF_USIZE > self.size { 
+        if head + SZ_OF_USIZE > self.buffer.len() { 
 //EXTRA SAD CASE
-            let bytes_until_end = self.size - head;
+            let bytes_until_end = self.buffer.len() - head;
             let first_half = &self.buffer[head..];
             let second_half = &self.buffer[..SZ_OF_USIZE-bytes_until_end];
             let mut msg_len_bytes: [u8;SZ_OF_USIZE] = [0;SZ_OF_USIZE];
@@ -173,7 +171,7 @@ impl <'a> RingbufRo<'a> {
             let msg_len= usize::from_le_bytes(msg_len_slice.try_into().unwrap());
 
             if msg_len <= curr_bytes - SZ_OF_USIZE {
-                let bytes_until_end = self.size - head;
+                let bytes_until_end = self.buffer.len() - head;
 
                 if msg_len > bytes_until_end - SZ_OF_USIZE { //does the message wrap the buffer
 //SAD CASE
@@ -187,7 +185,7 @@ impl <'a> RingbufRo<'a> {
                 } else {
 //HAPPY CASE
                     buffer[..msg_len].copy_from_slice(&self.buffer[head+SZ_OF_USIZE..head+SZ_OF_USIZE+msg_len]);
-                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.size;
+                    *self.head = (head + SZ_OF_USIZE + msg_len) % self.buffer.len();
                     msg_len
                 }
             }else { //there were not enough bytes to fulfil the msg_len, this should never happen
@@ -221,7 +219,7 @@ impl<'a> Display for RingbufRo<'a> {
         return write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
                       self.tail,
                       self.head,
-                      self.size,
+                      self.buffer.len(),
                       &hex,
                       &headtail);
     }

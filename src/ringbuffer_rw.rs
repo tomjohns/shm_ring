@@ -8,16 +8,14 @@ use crate::avx::SliceExt;
 pub struct RingbufRw <'a> {
     pub(crate) head : &'a usize,
     pub(crate) tail : &'a mut usize,
-    pub(crate) size : usize,
     pub(crate) buffer : &'a mut [u8],
 }
 
 impl <'a> RingbufRw <'a> {
-    pub fn make(tail : & 'a mut usize, head : & 'a usize, size : usize, buffer : & 'a mut [u8]) -> Self {
+    pub fn make(tail : & 'a mut usize, head : & 'a usize, buffer : & 'a mut [u8]) -> Self {
         Self {
             tail : tail,
             head : head,
-            size : size,//TODO: get rid of size, we can get it from buffer.len()
             buffer : buffer,
         }
     }
@@ -29,7 +27,7 @@ impl <'a> RingbufRw <'a> {
         let head : & usize = unsafe { transmute(data as * mut usize) };
         let data = unsafe { data.offset(size_of::<usize>() as isize) };
         let size = size - (size_of::<usize>() * 2);
-        return RingbufRw::make(tail, head, size, unsafe {slice::from_raw_parts_mut(data, size)} );
+        return RingbufRw::make(tail, head,unsafe {slice::from_raw_parts_mut(data, size)} );
     }
 
     pub fn is_empty(&self) -> bool {
@@ -41,7 +39,7 @@ impl <'a> RingbufRw <'a> {
     }
 
     pub fn is_full(&self) -> bool {
-        if (*self.tail + 1) % self.size == *self.head {
+        if (*self.tail + 1) % self.buffer.len() == *self.head {
             true
         } else {
             false
@@ -54,7 +52,7 @@ impl <'a> RingbufRw <'a> {
         if tail > head {
             tail - head
         } else if tail < head {
-            self.size + tail - head
+            self.buffer.len() + tail - head
         } else {
             0
         }
@@ -73,11 +71,11 @@ impl <'a> RingbufRw <'a> {
     }
 
     pub fn get_size(&self) -> usize {
-        self.size
+        self.buffer.len()
     }
 
     pub fn empty_slots_left(&self) -> usize {
-        self.size - self.get_curr_bytes() - 1
+        self.buffer.len() - self.get_curr_bytes() - 1
     }
     #[cfg(feature = "avx2")]
     pub fn push(&mut self, msg: &[u8]) -> usize {
@@ -90,7 +88,7 @@ impl <'a> RingbufRw <'a> {
         let tail = *self.tail;
         let msg_len_bytes = msg_len.to_le_bytes();
         let msg_len_bytes_len = msg_len_bytes.len();
-        let bytes_until_end = self.size - tail;
+        let bytes_until_end = self.buffer.len() - tail;
 
         if bytes_until_end < SZ_OF_USIZE {
 //EXTRA SAD CASE
@@ -112,7 +110,7 @@ impl <'a> RingbufRw <'a> {
         } else {
             self.buffer[tail..tail+SZ_OF_USIZE].copy_from_slice_avx(&msg_len_bytes);
             self.buffer[tail+SZ_OF_USIZE..tail+SZ_OF_USIZE+msg_len].copy_from_slice_avx(msg);
-            *self.tail = (tail+SZ_OF_USIZE+msg_len) % self.size;
+            *self.tail = (tail+SZ_OF_USIZE+msg_len) % self.buffer.len();
         }
 
         msg_len + SZ_OF_USIZE
@@ -130,7 +128,7 @@ impl <'a> RingbufRw <'a> {
         let tail = *self.tail;
         let msg_len_bytes = msg_len.to_le_bytes();
         let msg_len_bytes_len = msg_len_bytes.len();
-        let bytes_until_end = self.size - tail;
+        let bytes_until_end = self.buffer.len() - tail;
 
         if bytes_until_end < SZ_OF_USIZE {
 //EXTRA SAD CASE
@@ -152,7 +150,7 @@ impl <'a> RingbufRw <'a> {
         } else {
             self.buffer[tail..tail+SZ_OF_USIZE].copy_from_slice(&msg_len_bytes);
             self.buffer[tail+SZ_OF_USIZE..tail+SZ_OF_USIZE+msg_len].copy_from_slice(msg);
-            *self.tail = (tail+SZ_OF_USIZE+msg_len) % self.size;
+            *self.tail = (tail+SZ_OF_USIZE+msg_len) % self.buffer.len();
         }
 
         msg_len + SZ_OF_USIZE
@@ -181,7 +179,7 @@ impl<'a> Display for RingbufRw<'a> {
         return write!(format, "\nRing Buffer: tail: {}, head: {}, size: {}\n [ {} ]\n [ {} ]\n",
                       self.tail,
                       self.head,
-                      self.size,
+                      self.buffer.len(),
                       &hex,
                       &headtail);
     }
