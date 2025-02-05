@@ -1,8 +1,8 @@
 [package]
 name = "shm_ring"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2021"
-description = "A directional ring buffer for message passing between shared memory"
+description = "A single producer, single consumer lockless ring buffer for message passing between shared memory"
 authors = ["Thomas Johnson <tomjohn@crabfeeder.org>"]
 license = "MIT"
 repository = "https://github.com/tomjohns/shm_ring.git"
