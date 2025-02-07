@@ -106,9 +106,9 @@ fn get_parts(accumulator: usize, phantom_head: usize, buffer: &[u8]) -> (&[u8], 
     let bytes_until_end = buffer.len() - phantom_head;
     if phantom_head + accumulator > bytes_until_end{//split the messages into two parts
         first_part = &buffer[phantom_head..];
-        second_part = Some(&buffer[..accumulator-(bytes_until_end)]);
+        second_part = Some(&buffer[..accumulator-bytes_until_end]);
     } else {
-        first_part = &buffer[phantom_head..accumulator]
+        first_part = &buffer[phantom_head..phantom_head+accumulator]
     }
     
     (first_part, second_part)
