@@ -5,4 +5,4 @@ pub mod drain_and_fill;
 #[cfg(feature = "avx2")]
 pub mod avx;
 
-pub const SZ_OF_USIZE: usize = size_of::<usize>();
+pub const SZ_OF_USIZE: usize = core::mem::size_of::<usize>();
