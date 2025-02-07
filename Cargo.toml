@@ -1,6 +1,6 @@
 [package]
 name = "shm_ring"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 description = "A single producer, single consumer lockless ring buffer for message passing between shared memory"
 authors = ["Thomas Johnson <tomjohn@crabfeeder.org>"]
