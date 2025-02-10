@@ -103,11 +103,10 @@ fn get_parts(accumulator: usize, phantom_head: usize, buffer: &[u8]) -> (&[u8], 
     //---------------------Get the contiguous messages in potentially 2 parts
     let first_part: &[u8];
     let mut second_part: Option<&[u8]> = None;
-    let bytes_until_end = buffer.len() - phantom_head;
-    if phantom_head + accumulator > bytes_until_end{//split the messages into two parts
+    if phantom_head + accumulator > buffer.len() {//split the messages into two parts
         first_part = &buffer[phantom_head..];
-        let left_over = (phantom_head+accumulator) % buffer.len();
-        second_part = Some(&buffer[..left_over]);
+        let bytes_until_end = buffer.len() - phantom_head;
+        second_part = Some(&buffer[..accumulator-bytes_until_end]);
     } else {
         first_part = &buffer[phantom_head..phantom_head+accumulator]
     }
